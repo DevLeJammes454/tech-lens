@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../node_modules/@prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Organization {
+  id              String     @id @default(uuid())
+  name            String
+  logo            String?
+  subscriptionPlan String    @default("FREE") // FREE, PRO, ENTERPRISE
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  users           User[]
+  customers       Customer[]
+  tickets         Ticket[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  name           String?
+  password       String       // Hashed
+  role           Role         @default(TECHNICIAN)
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("users")
+}
+
+model Customer {
+  id             String       @id @default(uuid())
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  tickets        Ticket[]
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("customers")
+}
+
+model Ticket {
+  id             String       @id @default(uuid())
+  ticketNumber   Int          @default(autoincrement()) // Per-org auto-increment is harder, this is global for now or handled in logic
+  
+  // Equipment Details
+  brand          String
+  model          String
+  serialNumber   String?
+  problemDescription String
+
+  status         TicketStatus @default(RECIBIDO)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  customerId     String
+  customer       Customer     @relation(fields: [customerId], references: [id])
+
+  images         TicketImage[]
+  logs           TicketLog[]
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("tickets")
+}
+
+model TicketImage {
+  id             String   @id @default(uuid())
+  url            String
+  comment        String   // Mandatory explanation
+  
+  ticketId       String
+  ticket         Ticket   @relation(fields: [ticketId], references: [id])
+
+  createdAt      DateTime @default(now())
+
+  @@map("ticket_images")
+}
+
+model TicketLog {
+  id             String       @id @default(uuid())
+  previousStatus TicketStatus?
+  newStatus      TicketStatus
+  changedBy      String?      // User ID or Name
+  
+  ticketId       String
+  ticket         Ticket       @relation(fields: [ticketId], references: [id])
+
+  createdAt      DateTime     @default(now())
+
+  @@map("ticket_logs")
+}
+
+enum Role {
+  ADMIN
+  TECHNICIAN
+  VIEWER
+}
+
+enum TicketStatus {
+  RECIBIDO
+  DIAGNOSTICO
+  REPARACION
+  LISTO
+  ENTREGADO
+}
